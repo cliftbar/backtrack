@@ -1,0 +1,5 @@
+general:
+  log_level: "info"
+  static_dir: "static"
+  template_dir: "templates"
+  hostname: "backtrack.cliftbar.site"

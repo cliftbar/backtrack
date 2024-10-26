@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/static/css/basic.css">
+    <link rel="stylesheet" href="/static/css/map.css">
+    <link href="https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
+
+    <script src="https://unpkg.com/maplibre-gl@^4.7.1/dist/maplibre-gl.js"></script>
+    <script src="https://loc8.us/maplibre-gl-vector-text-protocol/dist/maplibre-gl-vector-text-protocol.js"></script>
+
+
+</head>
+<body>
+    {% include "/includes/nav.html" %}
+    <div id="content" class="flex-container">
+        <div id="controls" class="flex-container">
+            <form id="controlForm">
+                <p>Load a GeoJSON (.json) or GPX (.gpx) Track from File or URL.</p>
+                <fieldset class="flex-container">
+                    <label for="inputTrackLabel">Track Name</label>
+                    <input id="inputTrackLabel" type="text" placeholder="optional">
+                    <label for="inputTrackColor">Track Color</label>
+                    <input id="inputTrackColor" type="color" value="#FF0000" >
+                </fieldset>
+                <fieldset class="flex-container">
+                    <legend>From File</legend>
+                    <input id="inputFile" type="file">
+                    <button id="inputFileAdd" type="button" onclick=addTrack()>Load Track</button>
+                </fieldset>
+                <fieldset class="flex-container">
+                    <legend>From URL</legend>
+                    <input id="inputUrl" type="text">
+                    <button id="inputFileFetch" type="button" onclick=fetchTrack()>Fetch Track</button>
+                </fieldset>
+                <fieldset class="flex-container">
+                    <legend>From List</legend>
+                    <select id="slct_selectTrack">
+                        <option value="" selected="selected" disabled>Select Track</option>
+                        {% for track in tracks %}
+                            <option value='https://{{ hostname }}/{{ key }}/track/{{ track.track_id }}/json'>{{ track.track_id }}</option>
+                        {% endfor %}
+                    </select>
+                    <button id="selectFetch" type="button" onclick=selectTrack()>Get Track</button>
+                </fieldset>
+            </form>
+            <div id="track-menu">
+                <ul id="track-list"></ul>
+            </div>
+        </div>
+        <div id="map"></div>
+    </div>
+    {% include "/includes/footer.html" %}
+    <script src="/static/js/map.js"></script>
+</body>

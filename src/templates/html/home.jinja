@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Backtrack</title>
+</head>
+<body>
+<form>
+    <label>
+        User Key:
+        <input disabled id="user_name" type="text" value="{{ user_default }}" oninput="update()">
+    </label>
+    <label>
+        Track Name
+        <input id="track_name" type="text" value="{{ track_default }}" oninput="update()">
+    </label>
+</form>
+<a href="https://gpslogger.app/">GPS Logger</a>
+<br/>
+<a id="download_link" href="https://backtrack.cliftbar.site/{{ user_default }}/profile/{{ track_default }}">Download
+    Profile Link</a>
+<br/>
+<a id="mobile_link"
+   href="gpslogger://properties/https://backtrack.cliftbar.site/{{ user_default }}/profile/{{ track_default }}">GPSLogger
+    Profile Link</a>
+<br/>
+<a id="track_link"
+   href="https://backtrack.cliftbar.site/map.html?track=https://backtrack.cliftbar.site/{{ user_default }}/track/{{ track_default }}/json">Track
+    Link</a>
+<br/>
+<a id="map_link" href="https://backtrack.cliftbar.site/map.html?key={{ user_default }}">Map Link</a>
+<script>
+    function update() {
+        let user_name = document.getElementById("user_name").value
+        let track_name = document.getElementById("track_name").value
+
+        document.getElementById("download_link").href = `https://backtrack.cliftbar.site/${user_name}/profile/${track_name}`
+        document.getElementById("mobile_link").href = `gpslogger://properties/https://backtrack.cliftbar.site/${user_name}/profile/${track_name}`
+        document.getElementById("track_link").href = `https://backtrack.cliftbar.site/map.html?track=https://backtrack.cliftbar.site/${user_name}/track/${track_name}/json`
+        document.getElementById("map_link").href = `https://backtrack.cliftbar.site/map.html?key=${user_name}`
+    }
+</script>
+</body>
+</html>
