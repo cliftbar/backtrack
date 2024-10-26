@@ -9,7 +9,7 @@ COPY ./requirements ./requirements
 RUN sh ./requirements/install.sh
 
 COPY ./src ./src
-WORKDIR src
+WORKDIR /backtrack/src
 
 ENV PYTHONUNBUFFERED=1
 
