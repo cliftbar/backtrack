@@ -1,15 +1,8 @@
-# Test your FastAPI endpoints
 
-GET http://127.0.0.1:8000/
-Accept: application/json
 
 ###
-
-GET http://127.0.0.1:8000/hello/User
-Accept: application/json
-
-###
-GET http://localhost:8000/tracks?key=user
+# @name Get Tracks
+GET http://{{base_url}}/tracks?key=user
 
 ###
 GET http://localhost:8000/track?key=test&track_id=test_2024-10-19T22-14-08&format=json

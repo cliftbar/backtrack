@@ -34,7 +34,7 @@ async def store_log(log_item: LogItem):
 
 
 @tracks_router.get("/tracks")
-async def get_log(key: str):
+async def get_tracks(key: str):
     tracks = await controller.get_tracks(key)
     if not tracks:
         raise HTTPException(status_code=404, detail=f"{key} not found")
