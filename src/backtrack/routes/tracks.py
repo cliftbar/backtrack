@@ -35,10 +35,10 @@ async def store_log(log_item: LogItem):
 
 @tracks_router.get("/tracks")
 async def get_log(key: str):
-    tracks = controller.get_tracks(key)
+    tracks = await controller.get_tracks(key)
     if not tracks:
         raise HTTPException(status_code=404, detail=f"{key} not found")
-
+    return [t.track_id for t in tracks]
 
 @tracks_router.get("/track")
 async def get_log(key: str, track_id: str, format: str = "json"):
