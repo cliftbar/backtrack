@@ -71,10 +71,10 @@ class BacktrackController:
         return [track.track_id for track in tracks]
 
     @staticmethod
-    def make_profile(key: str, name: str) -> str:
-        profiles: dict[str, str] = {
+    def make_profile(key: str, track_id: str) -> str:
+        profile: dict[str, str] = {
             "log_customurl_method": "POST",
-            "log_customurl_body": '{{"key"\: "{key}","description"\: "%DESC","ts"\: "%TIME","lat"\: %LAT,"lon"\: %LON,"altitude"\: %ALT,"direction"\: %DIR,"speed_kph"\: %SPD_KPH,"distance"\: %DIST,"battery"\: %BATT,"accuracy"\: %ACC,"android_id"\: "%AID","start_time"\: %STARTTIMESTAMP,"profile"\: "%PROFILE","filename"\: "%FILENAME"}}',
+            "log_customurl_body": '{{"key"\: "{key}","track_id"\: "%FILENAME","description"\: "%DESC","ts"\: "%TIME","lat"\: %LAT,"lon"\: %LON,"altitude"\: %ALT,"direction"\: %DIR,"speed_kph"\: %SPD_KPH,"distance"\: %DIST,"battery"\: %BATT,"accuracy"\: %ACC,"android_id"\: "%AID","start_time"\: %STARTTIMESTAMP,"profile"\: "%PROFILE"}}',
             "current_profile_name": "{name}",
             "log_customurl_url": "https\://backtrack.cliftbar.site/log",
             "log_customurl_discard_offline_locations_enabled": "false",
@@ -91,11 +91,11 @@ class BacktrackController:
             "new_file_custom_each_time": "true"
         }
 
-        profiles["current_profile_name"] = profiles["current_profile_name"].format(name=name)
-        profiles["new_file_custom_name"] = profiles["new_file_custom_name"].format(name=name)
-        profiles["log_customurl_body"] = profiles["log_customurl_body"].format(key=key)
+        profile["current_profile_name"] = profile["current_profile_name"].format(name=key)
+        profile["new_file_custom_name"] = profile["new_file_custom_name"].format(name=track_id)
+        profile["log_customurl_body"] = profile["log_customurl_body"].format(key=key)
 
         profile_text: str = ""
-        for k, v in profiles.items():
+        for k, v in profile.items():
             profile_text += f"{k}={v}\n"
         return profile_text

@@ -20,8 +20,8 @@ def robots():
 
 
 @pages_router.get("/", response_class=HTMLResponse)
-async def home_page(request: Request):
-    new_key: str = await controller.get_next_squid()
+async def home_page(request: Request, key: Optional[str] = None):
+    new_key: str = key if key is not None else await controller.get_next_squid()
     return templates.TemplateResponse(
         request=request, name="html/home.jinja", context={"user_default": new_key,
                                                           "track_default": f"track_{datetime.now(tz=timezone.utc).strftime('%Y%m%d%H%M%S')}"}
