@@ -127,7 +127,7 @@ async function removeTrack(evt) {
     let sourceId = layerId.replace(prefixRegexp, '');
     map.removeLayer(layerId);
     map.removeSource(sourceId);
-    sources.delete(sourceId)
+    delete sources[sourceId]
 
     let elmId = "cbx_" + layerId;
     document.getElementById("li_" + elmId).remove();
