@@ -76,7 +76,7 @@ class BacktrackController:
             "log_customurl_method": "POST",
             "log_customurl_body": '{{"key"\: "{key}","track_id"\: "%FILENAME","description"\: "%DESC","ts"\: "%TIME","lat"\: %LAT,"lon"\: %LON,"altitude"\: %ALT,"direction"\: %DIR,"speed_kph"\: %SPD_KPH,"distance"\: %DIST,"battery"\: %BATT,"accuracy"\: %ACC,"android_id"\: "%AID","start_time"\: %STARTTIMESTAMP,"profile"\: "%PROFILE"}}',
             "current_profile_name": "{name}",
-            "log_customurl_url": "https\://backtrack.cliftbar.site/log",
+            "log_customurl_url": "https\://backtrack.cliftbar.site/track",
             "log_customurl_discard_offline_locations_enabled": "false",
             "accuracy_before_logging": "40",
             "new_file_creation": "custom",
