@@ -1,28 +1,24 @@
-import uuid
 from datetime import datetime, timezone
 from random import Random
-from sys import maxsize
-from typing import Optional, List, Set
+from typing import Optional
 
-from geojson import FeatureCollection, LineString, Feature
 from sqids import Sqids
 from sqlalchemy import Engine
 from sqlalchemy.dialects.sqlite import insert
 from sqlalchemy.ext.asyncio import AsyncEngine, AsyncSession
 from sqlmodel import select, Session
 
-from backtrack.storage.models import LogTrack, LogPoint
+from backtrack.storage.models import LogTrackDetails, LogPoint, LogTrack
 
 
 class BacktrackController:
-
     def __init__(self, engine: Engine, async_engine: AsyncEngine):
         self.async_engine = async_engine
         self.engine = engine
         self.sqids = Sqids(min_length=5)
         self.rand = Random()
 
-    async def store_log(self, track: LogTrack, point: LogPoint) -> None:
+    async def store_log(self, track: LogTrackDetails, point: LogPoint) -> None:
         async with (AsyncSession(self.async_engine) as session):
             statement = insert(track.__class__).values(**track.model_dump(exclude_unset=True)).on_conflict_do_nothing()
             await session.execute(statement)
@@ -30,43 +26,41 @@ class BacktrackController:
             session.add(point)
             await session.commit()
 
-    def get_json_track(self, key: str, track_id: str) -> Optional[FeatureCollection]:
+    def get_track(self, key: str, track_id: str) -> Optional[LogTrack]:
         with Session(self.engine) as session:
-            stmt = select(LogTrack).where(LogTrack.key == key).where(LogTrack.track_id == track_id)
+            stmt = select(LogTrackDetails).where(LogTrackDetails.key == key).where(LogTrackDetails.track_id == track_id)
             track = list(session.exec(stmt))
             if track is None or len(track) == 0:
                 return None
-            points = session.exec(select(LogPoint).where(LogPoint.track_id == track_id))
+            points: list[LogPoint] = list(
+                session.exec(select(LogPoint).where(LogPoint.track_id == track_id).order_by(LogPoint.ts.desc())))
 
-            point_set = []
-            for p in points:
-                point_set.append((p.lon, p.lat, p.altitude))
-            line: LineString = LineString(point_set, properties=track[0].model_dump())
-            feature = Feature(geometry=line)
-            collection: FeatureCollection = FeatureCollection([feature])
-            return collection
+        return LogTrack(details=track[0], points=points)
 
     async def get_next_squid(self) -> str:
         with Session(self.engine) as session:
             with session.begin():
-                tracks: list[LogTrack] = list(session.exec(select(LogTrack)))
+                tracks: list[LogTrackDetails] = list(session.exec(select(LogTrackDetails)))
                 keys: set[str] = set([t.key for t in tracks])
                 while True:
-                    new_key: str = self.sqids.encode([int(datetime.now(tz=timezone.utc).timestamp()), self.rand.randint(0, 1000)])
+                    new_key: str = self.sqids.encode(
+                        [int(datetime.now(tz=timezone.utc).timestamp()), self.rand.randint(0, 1000)])
                     if new_key not in keys:
                         break
 
         return new_key
 
-    async def get_tracks(self, key) -> list[LogTrack]:
+    async def get_tracks(self, key) -> list[LogTrackDetails]:
         with Session(self.engine) as session:
-            tracks: list[LogTrack] = list(session.exec(select(LogTrack).where(LogTrack.key == key)))
+            tracks: list[LogTrackDetails] = list(
+                session.exec(select(LogTrackDetails).where(LogTrackDetails.key == key)))
 
         return tracks
 
     async def get_user_tracks(self, key: str) -> list[str]:
         async with Session(self.engine) as session:
-            tracks: list[LogTrack] = list(session.exec(select(LogTrack).where(LogTrack.key == key)))
+            tracks: list[LogTrackDetails] = list(
+                session.exec(select(LogTrackDetails).where(LogTrackDetails.key == key)))
 
         return [track.track_id for track in tracks]
 

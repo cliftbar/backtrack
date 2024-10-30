@@ -7,7 +7,7 @@ from starlette.templating import Jinja2Templates
 
 from backtrack.config import app_conf
 from backtrack.controllers import controller
-from backtrack.storage.models import LogTrack
+from backtrack.storage.models import LogTrackDetails
 
 pages_router: APIRouter = APIRouter()
 templates = Jinja2Templates(directory=app_conf.general.template_dir)
@@ -30,5 +30,6 @@ async def home_page(request: Request, key: Optional[str] = None):
 
 @pages_router.get("/map.html", response_class=HTMLResponse)
 async def map_page(request: Request, key: Optional[str] = None):
-    tracks: list[LogTrack] = await controller.get_tracks(key)
-    return templates.TemplateResponse(request=request, name="html/map.jinja", context={"tracks": tracks, "key": key, "hostname": app_conf.general.hostname})
+    tracks: list[LogTrackDetails] = await controller.get_tracks(key)
+    return templates.TemplateResponse(request=request, name="html/map.jinja",
+                                      context={"tracks": tracks, "key": key, "hostname": app_conf.general.hostname})

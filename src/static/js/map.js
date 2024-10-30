@@ -1,5 +1,9 @@
-const layerIdPrefix = 'tracks-'
-let sources = {};
+const trackLayerIdPrefix = 'tracks-'
+const pointLayerIdPrefix = 'point-'
+let layerSourceMap = {};
+const layerTypeColorPropMap = {
+    "circle": "circle-color", "line": "line-color"
+}
 let map = new maplibregl.Map({
     container: 'map', // container id
     // style: 'https://demotiles.maplibre.org/style.json', // style URL
@@ -12,6 +16,7 @@ map.on("load", async () => {
     await init();
 });
 
+
 async function init() {
     maplibregl.addProtocol('gpx', VectorTextProtocol.VectorTextProtocol);
 
@@ -19,7 +24,7 @@ async function init() {
 
     map.on('idle', () => {
         // Add the layer selector
-        layerSelector(map, layerIdPrefix);
+        layerSelector(map);
     });
 
     await loadSearchParams()
@@ -92,42 +97,113 @@ async function trackFromUrl(url, sourceName, color) {
     let content = await r.text()
     const inputBlob = new Blob([content], {type: 'text/plain'});
 
-    const blobUrl = guessInputType(url) + URL.createObjectURL(inputBlob);
+    let inputType = guessInputType(url)
+    const blobUrl = inputType + URL.createObjectURL(inputBlob);
 
     await addSourceLayer(sourceName, blobUrl, color)
     await zoomToSources()
 }
 
 async function addSourceLayer(sourceName, blobUrl, color) {
-    let layerId = layerIdPrefix + sourceName
+    let trackLayerId = trackLayerIdPrefix + sourceName
     await map.addSource(sourceName, {
         'type': 'geojson', 'data': blobUrl,
     });
+
+    let isSourceValid = await sourceValid(sourceName);
+    if (!isSourceValid) {
+        return
+    }
+
     await map.addLayer({
-        'id': layerId, 'type': 'line', 'source': sourceName, 'minzoom': 0, 'maxzoom': 20, 'paint': {
+        'id': trackLayerId, 'type': 'line', 'source': sourceName, 'minzoom': 0, 'maxzoom': 20, 'paint': {
             'line-color': color, 'line-width': 5
-        }
+        }, 'filter': ['==', '$type', 'LineString']
     });
-    let isValid = await sourceValid(sourceName);
-    if (isValid) {
-        // sources.set(sourceName, layerId);
-        sources[sourceName] = layerId;
+    layerSourceMap[trackLayerId] = sourceName;
+
+    let sourceType = await sourceTypes(sourceName);
+    if (sourceType.includes("Point")) {
+        let pointLayerId = pointLayerIdPrefix + sourceName;
+        await addPointLayerClick(pointLayerIdPrefix + sourceName, sourceName)
+        layerSourceMap[pointLayerId] = sourceName;
     }
 }
+
+async function addPointLayerClick(layerId, sourceName) {
+    await map.addLayer({
+        'id': layerId, 'type': 'circle', 'source': sourceName, 'minzoom': 0, 'maxzoom': 20, 'paint': {
+            'circle-color': "red", 'circle-radius': 6
+        }, 'filter': ['==', '$type', 'Point']
+    });
+
+    // When a click event occurs on a feature in the places layer, open a popup at the
+    // location of the feature, with description HTML from its properties.
+    map.on('click', layerId, (e) => {
+        const coordinates = e.features[0].geometry.coordinates.slice();
+        const props = e.features[0].properties;
+
+        // Ensure that if the map is zoomed out such that multiple
+        // copies of the feature are visible, the popup appears
+        // over the copy being pointed to.
+        while (Math.abs(e.lngLat.lng - coordinates[0]) > 180) {
+            coordinates[0] += e.lngLat.lng > coordinates[0] ? 360 : -360;
+        }
+
+        let htmlContent = `
+<p>
+    <h1>Current Position</h1>
+    <ul>
+        <li>time: ${new Date(props.time).toLocaleString()}</li>
+        ${typeof props.speed !== 'undefined' ? `<li>speed: ${props.speed}</li>` : ''}
+        ${typeof props.direction !== 'undefined' ? `<li>direction: ${props.direction}</li>` : ''}
+        ${typeof props.distance !== 'undefined' ? `<li>distance: ${props.distance}</li>` : ''}
+        ${typeof props.battery !== 'undefined' ? `<li>battery: ${props.battery}</li>` : ''}
+        ${typeof props.accuracy !== 'undefined' ? `<li>accuracy: ${Math.round(props.accuracy)}</li>` : ''}
+    </ul>
+</p>
+`
+        new maplibregl.Popup()
+            .setLngLat(coordinates)
+            .setHTML(htmlContent)
+            .addTo(map);
+    });
+
+    // Change the cursor to a pointer when the mouse is over the places layer.
+    map.on('mouseenter', layerId, () => {
+        map.getCanvas().style.cursor = 'pointer';
+    });
+
+    // Change it back to a pointer when it leaves.
+    map.on('mouseleave', layerId, () => {
+        map.getCanvas().style.cursor = '';
+    });
+}
+
 
 async function sourceValid(sourceName) {
     let srcData = await map.getSource(sourceName).getData();
     return typeof srcData.detail === "undefined"
 }
 
+async function sourceTypes(sourceName) {
+    let srcData = await map.getSource(sourceName).getData();
+
+    return srcData.features.flatMap(f => f.geometry).map(g => g.type)
+}
+
 async function removeTrack(evt) {
     let tgt = evt.target;
     let layerId = tgt.value;
-    const prefixRegexp = new RegExp(`^${layerIdPrefix}`);
-    let sourceId = layerId.replace(prefixRegexp, '');
+
+    let sourceId = layerSourceMap[layerId];
     map.removeLayer(layerId);
-    map.removeSource(sourceId);
-    delete sources[sourceId]
+
+    delete layerSourceMap[layerId]
+    let src_arr = Array.from(new Set(Object.values(layerSourceMap)));
+    if (!src_arr.includes(sourceId)) {
+        map.removeSource(sourceId);
+    }
 
     let elmId = "cbx_" + layerId;
     document.getElementById("li_" + elmId).remove();
@@ -159,68 +235,10 @@ function getFeatureBounds(feature) {
     return bounds;
 }
 
-
-async function zoomToSourceCollection(source) {
-    let d = await map.getSource(source).getData();
-    let bounds = d.features.reduce((bounds, f) => {
-        return bounds.extend(getFeatureBounds(f));
-    }, new maplibregl.LngLatBounds(getFeatureBounds(features[0]), getFeatureBounds(features[0])));
-
-    map.fitBounds(bounds, {
-        padding: 20
-    });
-}
-
-async function zoomToSource(source) {
-    let d = await map.getSource(source).getData();
-
-    const coordinates = getFlatCoords(d.features[0].geometry);
-
-    // Pass the first coordinates in the LineString to `lngLatBounds` &
-    // wrap each coordinate pair in `extend` to include them in the bounds
-    // result. A variation of this technique could be applied to zooming
-    // to the bounds of multiple Points or Polygon geometries - it just
-    // requires wrapping all the coordinates with the extend method.
-    let bounds = coordinates.reduce((bounds, coord) => {
-        return bounds.extend(coord);
-    }, new maplibregl.LngLatBounds(coordinates[0], coordinates[0]));
-
-    map.fitBounds(bounds, {
-        padding: 20
-    });
-}
-
-async function zoomToSourcesOneFeature() {
-    var promises = []
-    var coords = []
-    let src_arr =Object.keys(sources);
-    if (src_arr.length == 0) {
-        return;
-    }
-    for (let i = 0; i < src_arr.length; i++) {
-        let k = src_arr[i];
-        let src = map.getSource(k)
-        promises.push(src.getData());
-    }
-
-    let res = await Promise.all(promises)
-    for (let r of res) {
-        coords = coords.concat(getFlatCoords(r.features[0].geometry))
-    }
-    ;
-
-    let bounds = coords.reduce((bounds, coord) => {
-        return bounds.extend(coord);
-    }, new maplibregl.LngLatBounds(coords[0], coords[0]));
-    map.fitBounds(bounds, {
-        padding: 20
-    });
-}
-
 async function zoomToSources() {
     let promises = []
     let coords = []
-    let src_arr = Object.keys(sources);
+    let src_arr = Array.from(new Set(Object.values(layerSourceMap)));
     if (src_arr.length === 0) {
         return;
     }
@@ -247,22 +265,20 @@ async function zoomToSources() {
     }, coords[0]);
     if (typeof bounds !== "undefined") {
         map.fitBounds(bounds, {
-            maxZoom: 19,
-            padding: 20
+            maxZoom: 19, padding: 20
         });
     }
 }
 
-async function layerSelector(map, prefix) {
+async function layerSelector(map) {
     // Enumerate ids of the layers
-    const prefixRegexp = new RegExp(`^${prefix}`);
-    const toggleableLayerIds = Object.keys(map.style._layers).filter(name => name.match(prefixRegexp));
+    const toggleableLayerIds = Object.keys(map.style._layers).filter(name => name.startsWith(trackLayerIdPrefix) || name.startsWith(pointLayerIdPrefix));
 
     toggleableLayerIds.forEach(layerId => {
         // Make the name nicer
-        const sourceName = layerId.replace(prefixRegexp, '');
-        if (typeof sources[sourceName] === "undefined") {
-            console.log("ERROR No data for " + layerId + " in " + JSON.stringify(sources) + ", skipping")
+        let textName = layerId
+        if (typeof layerSourceMap[layerId] === "undefined") {
+            console.log("ERROR No data for " + layerId + " in " + JSON.stringify(layerSourceMap) + ", skipping")
             return;
         }
 
@@ -270,12 +286,8 @@ async function layerSelector(map, prefix) {
         let elmId = "cbx_" + layerId;
 
         if (!document.getElementById(elmId)) {
-            let red = parseInt(map.style.getLayer(layerId).paint.get("line-color").value.value.r * 256);
-            let green = parseInt(map.style.getLayer(layerId).paint.get("line-color").value.value.g * 256);
-            let blue = parseInt(map.style.getLayer(layerId).paint.get("line-color").value.value.b * 256);
-
-            let rgb = blue | (green << 8) | (red << 16);
-            let layerHex = '#' + rgb.toString(16).padStart(6, '0');
+            let mapLayer = map.style.getLayer(layerId)
+            let layerHex = map.getPaintProperty(layerId, layerTypeColorPropMap[mapLayer.type]);
 
             // Create a link.
             let link = document.createElement('input');
@@ -288,7 +300,7 @@ async function layerSelector(map, prefix) {
             let label = document.createElement("label")
             label.id = "lbl_" + elmId
             label.htmlFor = elmId
-            label.textContent = sourceName
+            label.textContent = textName
 
             let btn = document.createElement("button")
             btn.id = "btn_" + elmId
